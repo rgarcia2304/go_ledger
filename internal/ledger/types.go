@@ -17,3 +17,9 @@ type CreateEntryRequest struct{
 	Direction string
 	Currency string
 }
+
+type CreateAccountRequest struct{
+	Name string 
+	AccountType string 
+	Currency string
+}

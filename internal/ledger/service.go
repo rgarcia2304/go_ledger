@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"fmt"
 
 	db "github.com/rgarcia2304/go_ledger/internal/db"
 )
@@ -21,6 +22,49 @@ func NewService(queries *db.Queries, pool *pgxpool.Pool) *Service {
 	return &Service{db: queries, pool: pool}
 }
 
+func (s *Service) CreateAccount(ctx context.Context, req CreateAccountRequest) (*db.Account, error){
+	
+	//ok lets looks at the reqs to create an account the entirety of the struct has to be fullfilled 
+
+	acc, err := s.db.CreateAccount(ctx, db.CreateAccountParams{
+		AccountType: req.AccountType, 
+		Currency: req.Currency, 
+		Name: req.Name, 
+	})
+
+	if err != nil{
+		return nil, fmt.Errorf("Account could not be created: %w", err)
+	}
+	return &acc, nil
+	
+}
+
+func (s *Service) GetBalance(ctx context.Context, accID uuid.UUID) (int64, error){
+	
+	_, err := s.db.GetAccount(ctx, accID)
+	if err != nil{
+		return int64(0), fmt.Errorf("could not create account: %w", err)
+	}
+	accountBalance, err := s.db.GetBalance(ctx, accID)
+	if err != nil{
+		return int64(0), fmt.Errorf("Account Could Not Be Found: %w", err)
+	}
+	return accountBalance, nil
+}
+
+func (s *Service) GetTransactionHistory(ctx context.Context, accID uuid.UUID) ([]db.GetAccountHistoryRow, error){
+	
+        _, err := s.db.GetAccount(ctx, accID)
+	if err != nil{
+		return nil, fmt.Errorf("could not create account: %w", err)
+	}
+
+	accHistory, err := s.db.GetAccountHistory(ctx, accID)
+	if err != nil{
+		return nil, fmt.Errorf("could not get history for this account: %w", err)
+	}
+	return accHistory, nil
+}	
 func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRequest) (*db.Transaction, error) {
 
 	// step 1 - validate min entries
@@ -55,7 +99,7 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 		}
 	}
 
-	// step 4 - check idempotency key before entering retry loop
+	// check idempotency key before entering retry loop
 	// handles the common case of a caller retrying after a timeout
 	existing, err := s.db.GetTransactionByIdempotencyKey(ctx, req.IdempotencyKey)
 	if err == nil {
@@ -67,7 +111,7 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 		return nil, err
 	}
 
-	// step 5 - retry loop wrapping the serializable transaction
+	// retry loop wrapping the serializable transaction
 	const maxRetries = 3
 	for attempt := 0; attempt < maxRetries; attempt++ {
 
