@@ -49,6 +49,7 @@ func (s *Service) GetBalance(ctx context.Context, accID uuid.UUID) (int64, error
 	if err != nil{
 		return int64(0), fmt.Errorf("Account Could Not Be Found: %w", err)
 	}
+
 	return accountBalance, nil
 }
 

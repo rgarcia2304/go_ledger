@@ -19,3 +19,5 @@ sql:
             go_type: "time.Time"
           - db_type: "timestamp"
             go_type: "time.Time"
+          - column: "entries.amount_cents"
+            go_type: "int64"

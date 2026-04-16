@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -54,13 +55,58 @@ func (q *Queries) GetAccount(ctx context.Context, id uuid.UUID) (Account, error)
 	return i, err
 }
 
+const getAccountHistory = `-- name: GetAccountHistory :many
+SELECT transactions.description, entries.amount_cents, entries.direction, entries.created_at
+from entries
+INNER JOIN accounts
+ON accounts.id = entries.account_id
+INNER JOIN transactions
+ON entries.transaction_id = transactions.id
+WHERE entries.account_id = $1 
+ORDER BY entries.created_at DESC
+`
+
+type GetAccountHistoryRow struct {
+	Description string    `json:"description"`
+	AmountCents int64     `json:"amount_cents"`
+	Direction   string    `json:"direction"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (q *Queries) GetAccountHistory(ctx context.Context, accountID uuid.UUID) ([]GetAccountHistoryRow, error) {
+	rows, err := q.db.Query(ctx, getAccountHistory, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAccountHistoryRow
+	for rows.Next() {
+		var i GetAccountHistoryRow
+		if err := rows.Scan(
+			&i.Description,
+			&i.AmountCents,
+			&i.Direction,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getBalance = `-- name: GetBalance :one
-SELECT SUM(
+SELECT 
+COALESCE(
+SUM(
 	CASE WHEN direction = 'debit'
 	THEN amount_cents
 	ELSE -amount_cents
-	END
-) AS balance 
+	END), 0
+)::bigint AS balance 
 from entries
 WHERE account_id = $1
 `

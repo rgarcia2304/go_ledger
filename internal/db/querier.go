@@ -15,6 +15,7 @@ type Querier interface {
 	CreateEntry(ctx context.Context, arg CreateEntryParams) (Entry, error)
 	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
 	GetAccount(ctx context.Context, id uuid.UUID) (Account, error)
+	GetAccountHistory(ctx context.Context, accountID uuid.UUID) ([]GetAccountHistoryRow, error)
 	GetBalance(ctx context.Context, accountID uuid.UUID) (int64, error)
 	GetEntires(ctx context.Context, transactionID uuid.UUID) ([]Entry, error)
 	GetTransactionByIdempotencyKey(ctx context.Context, idempotencyKey string) (Transaction, error)
