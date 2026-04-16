@@ -1,0 +1,18 @@
+{
+    "description": "Cash received for services rendered",
+    "occurred_at": "2026-04-16T10:00:00Z",
+    "entries": [
+        {
+            "account_id": "23a1fe33-b954-466d-91ed-a173ce70c958",
+            "amount_cents": 10000,
+            "direction": "debit",
+            "currency": "USD"
+        },
+        {
+            "account_id": "f84a7c65-bd3d-411d-ad2b-ec2c6bba8cad",
+            "amount_cents": 10000,
+            "direction": "credit",
+            "currency": "USD"
+        }
+    ]
+}
