@@ -10,6 +10,8 @@ import (
     "github.com/google/uuid"
     "github.com/rgarcia2304/go_ledger/internal/ledger"
     "github.com/spf13/cobra"
+    "crypto/sha256"
+    "encoding/hex"
 )
 
 var transactionFile string
@@ -26,7 +28,26 @@ type TransactionJson struct {
     OccurredAt  time.Time  `json:"occurred_at"`
     Entries     []EntryReq `json:"entries"`
 }
-
+var getTransactionHistoryCmd = &cobra.Command{
+	Use: "get-transaction-history",
+	Aliases: []string{"gth"},
+	Short: "Gets the history of transactions on ledger",
+	RunE: func(cmd *cobra.Command, args []string)error{
+		parsedID, err := uuid.Parse(accountID)
+		if err != nil{
+			return err
+		}
+		transactions, err := svc.GetTransactionHistory(context.Background(), parsedID)
+		if err != nil{
+			return err
+		}
+		fmt.Printf("Transaction History for Account ID %v", accountID)
+		for _, t := range(transactions){
+			fmt.Printf("Transaction: %v", t)
+		}
+		return nil
+	},
+}
 var createTransactionCmd = &cobra.Command{
     Use:     "create-transaction",
     Aliases: []string{"ct"},
@@ -71,7 +92,8 @@ var createTransactionCmd = &cobra.Command{
         }
 
         // generate idempotency key
-        idempotencyKey := uuid.New().String()
+	hash := sha256.Sum256(data)
+	idempotencyKey := hex.EncodeToString(hash[:])
 
         // build entries list
         var entriesReqList []ledger.CreateEntryRequest
@@ -106,6 +128,9 @@ var createTransactionCmd = &cobra.Command{
 
 func init() {
     createTransactionCmd.Flags().StringVar(&transactionFile, "file", "", "Path to transaction JSON file (required)")
+    getTransactionHistoryCmd.Flags().StringVar(&accountID, "accountID", "", "Account ID (required)")
+    getTransactionHistoryCmd.MarkFlagRequired("accountID")
+    rootCmd.AddCommand(getTransactionHistoryCmd)
     createTransactionCmd.MarkFlagRequired("file")
     rootCmd.AddCommand(createTransactionCmd)
 }
