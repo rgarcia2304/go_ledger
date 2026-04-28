@@ -113,7 +113,7 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 	}
 
 	// retry loop wrapping the serializable transaction
-	const maxRetries = 3
+	const maxRetries = 10
 	for attempt := 0; attempt < maxRetries; attempt++ {
 
 		result, err := s.attemptCreateTransaction(ctx, req, assetsMap)
