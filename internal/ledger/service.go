@@ -176,7 +176,7 @@ func (s *Service) attemptCreateTransaction(ctx context.Context, req CreateTransa
 		if err != nil {
 			return nil, err
 		}
-		if bal-credits < 0 {
+		if bal - credits < 0 {
 			return nil, ErrInsufficientFunds
 		}
 	}
