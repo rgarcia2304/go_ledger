@@ -63,8 +63,12 @@ func TestMain(m *testing.M){
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 	
-	
-	pool, err := pgxpool.New(ctx, connStr)
+        config, err := pgxpool.ParseConfig(connStr)
+	if err != nil{
+		log.Fatalf("failed to parse pool config: %v", err)
+	}
+	config.MaxConns = 100 
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil{
 		log.Fatalf("error creating db pool: %v", err)
 	}

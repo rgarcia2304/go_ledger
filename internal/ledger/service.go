@@ -206,6 +206,29 @@ func (s *Service) attemptCreateTransaction(ctx context.Context, req CreateTransa
 	}
 
 	// write entry rows - each entry points back to the transaction
+
+	rows := make([][]interface{}, len(req.Entries))
+	for i, entry := range req.Entries	{
+		rows[i] = []interface{}{
+			transRes.ID,
+			entry.AccountID,
+			entry.AmountCents, 
+			entry.Currency,
+			entry.Direction,
+		}
+	}
+
+	_, err = tx.CopyFrom(
+		ctx, 
+		pgx.Identifier{"entries"},
+		[]string{"transaction_id", "account_id", "amount_cents", "currency", "direction"},
+		pgx.CopyFromRows(rows),
+	)
+	if err != nil{
+		return nil, err
+	}
+
+	/*
 	for _, entry := range req.Entries {
 		_, err := qtx.CreateEntry(ctx, db.CreateEntryParams{
 			TransactionID: transRes.ID,
@@ -218,6 +241,7 @@ func (s *Service) attemptCreateTransaction(ctx context.Context, req CreateTransa
 			return nil, err
 		}
 	}
+	*/
 
 	// commit - if this returns a serialization failure the caller retries
 	if err := tx.Commit(ctx); err != nil {
