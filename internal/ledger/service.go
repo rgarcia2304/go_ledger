@@ -65,7 +65,8 @@ func (s *Service) GetTransactionHistory(ctx context.Context, accID uuid.UUID) ([
 		return nil, fmt.Errorf("could not get history for this account: %w", err)
 	}
 	return accHistory, nil
-}	
+}
+
 func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRequest) (*db.Transaction, error) {
 
 	// step 1 - validate min entries
@@ -86,18 +87,31 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 		return nil, ErrUnbalancedTransaction
 	}
 
-	// step 3 - validate accounts exist and build asset credit map
-	// only track asset accounts since those are the only ones
-	// that can run out of funds
+
+        accountIDs := make([]uuid.UUID, 0, len(req.Entries))
+	for _, entry := range req.Entries{
+		accountIDs = append(accountIDs, entry.AccountID)
+	}
+
+	accounts, err := s.db.GetAccountsByIDs(ctx, accountIDs)
+	if err != nil{
+		return nil, err
+	}
+
+	accountMap := make(map[uuid.UUID]db.Account)
+	for _, acc := range accounts{
+		accountMap[acc.ID] = acc
+	}
+
 	assetsMap := make(map[uuid.UUID]int64)
-	for _, entry := range req.Entries {
-		acc, err := s.db.GetAccount(ctx, entry.AccountID)
-		if err != nil {
+	for _, entry := range req.Entries{
+		acc, ok := accountMap[entry.AccountID]
+		if !ok{
 			return nil, ErrAccountNotFound
 		}
-		if acc.AccountType == "asset" {
+		if acc.AccountType == "asset"{
 			assetsMap[acc.ID] = 0
-		}
+		}	
 	}
 
 	// check idempotency key before entering retry loop
