@@ -67,7 +67,7 @@ func TestMain(m *testing.M){
 	if err != nil{
 		log.Fatalf("failed to parse pool config: %v", err)
 	}
-	config.MaxConns = 100 
+	config.MaxConns = 25 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil{
 		log.Fatalf("error creating db pool: %v", err)

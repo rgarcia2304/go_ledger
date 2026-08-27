@@ -27,4 +27,8 @@ ON accounts.id = entries.account_id
 INNER JOIN transactions
 ON entries.transaction_id = transactions.id
 WHERE entries.account_id = $1 
-ORDER BY entries.created_at DESC; 
+ORDER BY entries.created_at DESC;
+
+-- name: GetAccountsByIDs :many
+SELECT * FROM accounts 
+WHERE id = ANY($1::uuid[]);

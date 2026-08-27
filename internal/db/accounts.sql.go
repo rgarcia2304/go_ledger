@@ -98,6 +98,37 @@ func (q *Queries) GetAccountHistory(ctx context.Context, accountID uuid.UUID) ([
 	return items, nil
 }
 
+const getAccountsByIDs = `-- name: GetAccountsByIDs :many
+SELECT id, name, currency, account_type, created_at FROM accounts 
+WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) GetAccountsByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]Account, error) {
+	rows, err := q.db.Query(ctx, getAccountsByIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Account
+	for rows.Next() {
+		var i Account
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Currency,
+			&i.AccountType,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getBalance = `-- name: GetBalance :one
 SELECT 
 COALESCE(
