@@ -18,12 +18,12 @@ var svc *ledger.Service
 func main(){
 	err := godotenv.Load("../../.env")
 	if err != nil{
-		log.Fatalf("Could not load info from env variables: %w", err)
+		log.Fatalf("Could not load info from env variables: %v", err)
 	}
 
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil{
-		log.Fatalf("Issue creating db pool: %w", err)
+		log.Fatalf("Issue creating db pool: %v", err)
 	}
 
 	defer pool.Close()
