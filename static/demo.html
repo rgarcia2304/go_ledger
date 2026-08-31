@@ -1,1382 +1,583 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Go Ledger — Live Demo</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Ledger</title>
+<style>
+  :root{
+    --bg: #FAF9F4;
+    --panel: #F3F1E9;
+    --ink: #201F1A;
+    --ink-dim: #746F62;
+    --ink-faint: #A5A092;
+    --rule: #DFDACA;
+    --pass: #2E6B4C;
+    --pass-bg: #E7F0E9;
+    --fail: #A23B2E;
+    --fail-bg: #F5E7E3;
+    --accent: #8A6D3B;
+    --serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, ui-serif, serif;
+    --mono: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  }
+  *{ box-sizing: border-box; }
+  html{ -webkit-text-size-adjust: 100%; }
+  body{
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--serif);
+    line-height: 1.5;
+  }
+  a{ color: var(--accent); }
+  ::selection{ background: #D9CFAE; }
 
-        :root {
-            --black: #080808;
-            --surface: #0f0f0f;
-            --surface2: #141414;
-            --border: #1e1e1e;
-            --border2: #282828;
-            --white: #f0f0f0;
-            --dim: #555;
-            --green: #00e676;
-            --green-dim: #00e67614;
-            --red: #ff5252;
-            --red-dim: #ff525214;
-            --yellow: #ffd740;
-            --blue: #64b5f6;
-            --mono: 'SF Mono', 'Fira Code', monospace;
-            --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
+  .wrap{
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 56px 24px 100px;
+  }
 
-        body {
-            background: var(--black);
-            color: var(--white);
-            font-family: var(--sans);
-            font-size: 13px;
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
+  @media (max-width: 520px){
+    .wrap{ padding: 36px 18px 80px; }
+  }
 
-        /* ── Top bar ── */
-        .topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            height: 44px;
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
-            background: var(--surface);
-        }
+  /* ── Header ── */
+  header{
+    margin-bottom: 40px;
+  }
+  .status-line{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-dim);
+    margin-bottom: 22px;
+  }
+  .dot{
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ink-faint);
+    flex-shrink: 0;
+  }
+  .dot.live{ background: var(--pass); }
+  .dot.down{ background: var(--fail); }
 
-        .topbar-left { display: flex; align-items: center; gap: 20px; }
+  h1{
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 12px;
+  }
+  header p{
+    font-size: 16px;
+    color: var(--ink-dim);
+    max-width: 56ch;
+    margin: 0 0 6px;
+  }
+  header .links{
+    font-family: var(--mono);
+    font-size: 12.5px;
+    margin-top: 18px;
+  }
+  header .links a{ text-decoration: none; border-bottom: 1px solid currentColor; }
+  header .links a + a{ margin-left: 18px; }
 
-        .logo {
-            font-family: var(--mono);
-            font-size: 12px;
-            color: var(--green);
-            letter-spacing: 0.04em;
-        }
+  .runall{
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
 
-        .scenario-tabs { display: flex; gap: 2px; }
+  /* ── Buttons ── */
+  button{
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 0.01em;
+    background: none;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+    padding: 9px 16px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  button:hover:not(:disabled){ background: var(--ink); color: var(--bg); }
+  button:disabled{ opacity: 0.35; cursor: default; }
+  button.primary{ background: var(--ink); color: var(--bg); }
+  button.primary:hover:not(:disabled){ background: var(--accent); border-color: var(--accent); }
+  .runall-note{ font-size: 12px; color: var(--ink-faint); font-family: var(--mono); }
 
-        .scenario-tab {
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            color: var(--dim);
-            background: none;
-            border: none;
-            transition: all 0.15s;
-        }
-        .scenario-tab.active { background: var(--border2); color: var(--white); }
-        .scenario-tab:hover:not(.active) { color: var(--white); }
+  /* ── Test blocks ── */
+  .test{
+    border-top: 1px solid var(--rule);
+    padding: 30px 0;
+  }
+  .test:last-of-type{ border-bottom: 1px solid var(--rule); }
 
-        .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .test-head{
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+  }
+  .test-num{
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .test-title{
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .test-sub{
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    text-transform: none;
+    margin: 0 0 8px;
+  }
+  .test-desc{
+    color: var(--ink-dim);
+    font-size: 14.5px;
+    max-width: 54ch;
+    margin: 0 0 16px;
+  }
+  .test-body{ padding-left: 34px; }
 
-        .mode-btn {
-            padding: 5px 14px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            border: 1px solid var(--border2);
-            background: none;
-            color: var(--dim);
-            letter-spacing: 0.04em;
-            transition: all 0.15s;
-        }
-        .mode-btn:hover { color: var(--white); border-color: var(--dim); }
-        .mode-btn.normal.active  { background: var(--green-dim);  color: var(--green);  border-color: var(--green); }
-        .mode-btn.rush.active    { background: #ffd74014;          color: var(--yellow); border-color: var(--yellow); }
-        .mode-btn.chaos.active   { background: var(--red-dim);     color: var(--red);    border-color: var(--red); }
+  .test-controls{
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
 
-        .stop-btn {
-            padding: 5px 14px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            border: 1px solid var(--border2);
-            background: var(--border2);
-            color: var(--white);
-            display: none;
-        }
-        .stop-btn.visible { display: block; }
+  .verdict{
+    display: none;
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-radius: 2px;
+    font-size: 14px;
+    animation: fade .25s ease;
+  }
+  @keyframes fade{ from{ opacity: 0; transform: translateY(-2px); } to{ opacity: 1; transform: translateY(0); } }
+  .verdict.show{ display: block; }
+  .verdict.pass{ background: var(--pass-bg); color: var(--pass); }
+  .verdict.fail{ background: var(--fail-bg); color: var(--fail); }
+  .verdict .v-title{ font-weight: 600; margin-bottom: 3px; }
+  .verdict .v-body{ color: var(--ink); font-size: 13.5px; }
 
-        .nav-link { font-size: 11px; color: var(--dim); text-decoration: none; transition: color 0.15s; }
-        .nav-link:hover { color: var(--white); }
+  details{ margin-top: 10px; }
+  summary{
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    user-select: none;
+  }
+  summary:hover{ color: var(--ink-dim); }
+  pre{
+    font-family: var(--mono);
+    font-size: 11.5px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    padding: 12px 14px;
+    overflow-x: auto;
+    margin: 10px 0 0;
+    border-radius: 2px;
+    line-height: 1.6;
+  }
+  .req-label{ font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); margin: 12px 0 -4px; }
+  .req-label:first-child{ margin-top: 0; }
 
-        /* ── Main layout ── */
-        .main {
-            display: grid;
-            grid-template-columns: 240px 1fr 260px;
-            flex: 1;
-            overflow: hidden;
-            gap: 1px;
-            background: var(--border);
-        }
+  footer{
+    margin-top: 50px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+  footer a{ color: var(--ink-dim); }
 
-        /* ── Left: accounts ── */
-        .accounts-panel {
-            background: var(--surface);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .panel-header {
-            padding: 10px 14px;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--dim);
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .accounts-list { flex: 1; overflow-y: auto; padding: 8px; }
-
-        .account-card {
-            border-radius: 6px;
-            padding: 10px 12px;
-            margin-bottom: 4px;
-            border: 1px solid var(--border);
-            background: var(--surface2);
-            transition: border-color 0.3s;
-        }
-        .account-card.flash { border-color: var(--green); }
-
-        .account-name { font-size: 12px; font-weight: 600; color: var(--white); margin-bottom: 1px; }
-        .account-desc { font-size: 10px; color: var(--dim); margin-bottom: 8px; line-height: 1.4; }
-
-        .account-balance {
-            font-family: var(--mono);
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--green);
-            line-height: 1;
-        }
-        .account-balance.warn { color: var(--yellow); }
-        .account-balance.danger { color: var(--red); }
-
-        .account-delta {
-            font-family: var(--mono);
-            font-size: 10px;
-            color: var(--dim);
-            margin-top: 3px;
-            min-height: 14px;
-            transition: color 0.2s;
-        }
-        .account-delta.up   { color: var(--green); }
-        .account-delta.down { color: var(--red); }
-
-        /* ── Center: feed ── */
-        .feed-panel {
-            background: var(--black);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .feed-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 16px;
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
-            background: var(--surface);
-        }
-
-        .feed-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); }
-
-        .feed-counters { display: flex; gap: 20px; }
-
-        .feed-counter { display: flex; flex-direction: column; align-items: flex-end; }
-
-        .feed-counter-val {
-            font-family: var(--mono);
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--white);
-            line-height: 1;
-        }
-        .feed-counter-val.green  { color: var(--green); }
-        .feed-counter-val.red    { color: var(--red); }
-        .feed-counter-val.yellow { color: var(--yellow); }
-
-        .feed-counter-label {
-            font-size: 9px;
-            color: var(--dim);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-top: 2px;
-        }
-
-        .feed-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px;
-            display: flex;
-            flex-direction: column-reverse;
-        }
-
-        .tx-row {
-            display: grid;
-            grid-template-columns: 14px 1fr auto auto;
-            gap: 10px;
-            align-items: center;
-            padding: 7px 10px;
-            border-radius: 5px;
-            margin-bottom: 2px;
-            border: 1px solid transparent;
-            animation: fadeIn 0.15s ease-out;
-            font-size: 12px;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-3px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        .tx-row.success { background: var(--green-dim); border-color: #00e67620; }
-        .tx-row.rejected { background: var(--red-dim); border-color: #ff525220; }
-        .tx-row.system  { background: #ffffff08; border-color: #ffffff15; }
-
-        .tx-icon { font-size: 9px; }
-        .tx-desc { color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .tx-amount { font-family: var(--mono); font-size: 11px; color: var(--dim); white-space: nowrap; }
-        .tx-time   { font-family: var(--mono); font-size: 10px; color: var(--border2); white-space: nowrap; }
-
-        .feed-empty {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex: 1;
-            color: var(--dim);
-            font-size: 12px;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .feed-empty-icon { font-size: 28px; opacity: 0.2; }
-
-        /* Rejection tooltip */
-        .tx-row.rejected .tx-desc { color: var(--red); }
-        .tx-reason {
-            grid-column: 1 / -1;
-            font-size: 10px;
-            color: var(--red);
-            opacity: 0.7;
-            padding-left: 24px;
-            margin-top: -4px;
-            font-family: var(--mono);
-        }
-
-        /* ── Right: metrics ── */
-        .metrics-panel {
-            background: var(--surface);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .metrics-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .metric-block {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px 12px;
-        }
-
-        .metric-label {
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--dim);
-            margin-bottom: 4px;
-        }
-
-        .metric-value {
-            font-family: var(--mono);
-            font-size: 26px;
-            font-weight: 700;
-            color: var(--white);
-            line-height: 1;
-        }
-        .metric-value.green  { color: var(--green); }
-        .metric-value.red    { color: var(--red); }
-        .metric-value.yellow { color: var(--yellow); }
-
-        .metric-sub { font-size: 10px; color: var(--dim); margin-top: 3px; }
-
-        .sparkline { width: 100%; height: 36px; margin-top: 8px; }
-
-        /* Status log */
-        .status-log {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 8px 10px;
-            font-family: var(--mono);
-            font-size: 10px;
-            color: var(--dim);
-            line-height: 1.8;
-            flex: 1;
-            overflow-y: auto;
-            min-height: 100px;
-        }
-        .log-line { display: flex; gap: 8px; }
-        .log-time { color: var(--border2); flex-shrink: 0; }
-        .log-msg.green  { color: var(--green); }
-        .log-msg.red    { color: var(--red); }
-        .log-msg.yellow { color: var(--yellow); }
-        .log-msg.dim    { color: var(--dim); }
-
-        /* Reconciliation */
-        .reconcile-block {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px;
-            display: none;
-        }
-        .reconcile-block.visible { display: block; }
-        .reconcile-block.ok   { border-color: var(--green); }
-        .reconcile-block.fail { border-color: var(--red); }
-        .reconcile-title { font-size: 10px; color: var(--dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
-        .reconcile-row {
-            display: flex;
-            justify-content: space-between;
-            font-family: var(--mono);
-            font-size: 10px;
-            padding: 2px 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .reconcile-row:last-child { border-bottom: none; }
-        .ok-val  { color: var(--green); }
-        .fail-val { color: var(--red); }
-
-        /* Chaos overlay */
-        .chaos-overlay {
-            position: fixed; inset: 0;
-            background: rgba(255,82,82,0.04);
-            pointer-events: none;
-            display: none; z-index: 10;
-        }
-        .chaos-overlay.active { display: block; animation: flicker 3s infinite; }
-        @keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-        .crash-banner {
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%,-50%);
-            background: var(--red);
-            color: #000;
-            font-family: var(--mono);
-            font-size: 13px;
-            font-weight: 700;
-            padding: 14px 28px;
-            border-radius: 6px;
-            letter-spacing: 0.08em;
-            display: none; z-index: 20;
-        }
-        .crash-banner.visible { display: block; }
-
-        ::-webkit-scrollbar { width: 3px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-    </style>
+  .setup-note{
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+</style>
 </head>
 <body>
+<div class="wrap">
 
-<div class="chaos-overlay" id="chaosOverlay"></div>
-<div class="crash-banner" id="crashBanner">⚡ SERVER DOWN — RECOVERING</div>
-
-<!-- Top bar -->
-<div class="topbar">
-    <div class="topbar-left">
-        <div class="logo">go/ledger <span style="color:#333">live demo</span></div>
-        <div class="scenario-tabs">
-            <button class="scenario-tab active" data-scenario="restaurant">🍽 Restaurant</button>
-            <button class="scenario-tab" data-scenario="payments">💳 Payments</button>
-            <button class="scenario-tab" data-scenario="exchange">📈 Exchange</button>
-        </div>
+  <header>
+    <div class="status-line">
+      <span class="dot" id="connDot"></span>
+      <span id="connText">connecting to ledger…</span>
     </div>
-    <div class="topbar-right">
-        <a href="/api" class="nav-link">→ API Explorer</a>
-        <button class="mode-btn normal" data-mode="normal">Normal</button>
-        <button class="mode-btn rush"   data-mode="rush">Rush Hour</button>
-        <button class="mode-btn chaos"  data-mode="chaos">Chaos</button>
-        <button class="stop-btn" id="stopBtn">■ Stop</button>
+    <h1>Six claims a ledger has to prove</h1>
+    <p>Go Ledger makes specific guarantees about correctness. The claims are that no lost money, no double charges, no corruption under concurrent load. Below, each guarantee is tested against the real, running API. Nothing here is simulated: every button sends an actual HTTP request and shows you what came back.</p>
+    <div class="links">
+      <a href="https://github.com/rgarcia2304/go_ledger" target="_blank" rel="noopener">source</a>
+      <a href="/api" target="_blank" rel="noopener">manual API explorer</a>
     </div>
-</div>
-
-<!-- Main -->
-<div class="main">
-
-    <!-- Left: accounts -->
-    <div class="accounts-panel">
-        <div class="panel-header">
-            <span>Accounts</span>
-            <span id="scenarioName" style="color:var(--white);font-size:11px;font-weight:600;"></span>
-        </div>
-        <div class="accounts-list" id="accountsList">
-            <div style="color:var(--dim);font-size:11px;padding:20px;text-align:center;line-height:1.7;">
-                Select a scenario above<br>then choose a mode to begin
-            </div>
-        </div>
+    <div class="runall">
+      <button class="primary" id="runAllBtn" disabled>Run all six</button>
+      <span class="runall-note" id="setupNote">setting up two demo accounts…</span>
     </div>
+  </header>
 
-    <!-- Center: transaction feed -->
-    <div class="feed-panel">
-        <div class="feed-header">
-            <div class="feed-title">Live Transaction Feed</div>
-            <div class="feed-counters">
-                <div class="feed-counter">
-                    <div class="feed-counter-val green" id="statTps">0</div>
-                    <div class="feed-counter-label">TPS</div>
-                </div>
-                <div class="feed-counter">
-                    <div class="feed-counter-val" id="statCommitted">0</div>
-                    <div class="feed-counter-label">Committed</div>
-                </div>
-                <div class="feed-counter">
-                    <div class="feed-counter-val red" id="statRejected">0</div>
-                    <div class="feed-counter-label">Rejected</div>
-                </div>
-            </div>
-        </div>
-        <div class="feed-body" id="feedBody">
-            <div class="feed-empty" id="feedEmpty">
-                <div class="feed-empty-icon">⬡</div>
-                <div>Waiting for transactions...</div>
-            </div>
-        </div>
-    </div>
+  <div id="tests"></div>
 
-    <!-- Right: metrics -->
-    <div class="metrics-panel">
-        <div class="panel-header">System Metrics</div>
-        <div class="metrics-body">
+  <footer>
+    This page only calls the four endpoints documented in the README, POST /accounts, POST /transactions, GET /accounts/{id}/balance, GET /accounts/{id}/history. Reload the page to run everything against a fresh pair of accounts.
+  </footer>
 
-            <div class="metric-block">
-                <div class="metric-label">Throughput</div>
-                <div class="metric-value green" id="metricTps">0</div>
-                <div class="metric-sub">transactions / sec</div>
-                <canvas class="sparkline" id="sparkline"></canvas>
-            </div>
-
-            <div class="metric-block">
-                <div class="metric-label">Committed</div>
-                <div class="metric-value green" id="metricCommitted">0</div>
-                <div class="metric-sub">successfully recorded to ledger</div>
-            </div>
-
-            <div class="metric-block">
-                <div class="metric-label">Rejected</div>
-                <div class="metric-value" id="metricRejected" style="color:var(--dim)">0</div>
-                <div class="metric-sub" id="metricRejectedSub">business rules enforced</div>
-            </div>
-
-            <div class="metric-block">
-                <div class="metric-label">Mode</div>
-                <div class="metric-value" id="metricMode" style="font-size:15px;color:var(--dim)">Idle</div>
-                <div class="metric-sub" id="metricModeSub">select a mode above</div>
-            </div>
-
-            <div class="metric-block" style="padding:8px 10px;">
-                <div class="metric-label" style="margin-bottom:6px;">Status Log</div>
-                <div class="status-log" id="statusLog">
-                    <div class="log-line">
-                        <span class="log-time">--:--:--</span>
-                        <span class="log-msg dim">Ledger ready.</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="reconcile-block" id="reconcileBlock">
-                <div class="reconcile-title" id="reconcileTitle">Reconciliation</div>
-                <div id="reconcileRows"></div>
-            </div>
-
-        </div>
-    </div>
 </div>
 
 <script>
-// ─────────────────────────────────────────────────────────────────────────────
-// SCENARIOS
-// Each account has:
-//   key       — internal identifier
-//   name      — human readable name shown in UI
-//   desc      — plain English what this account represents
-//   type      — asset / liability / equity / revenue / expense
-//   creditNormal — true if credits increase the balance (liability/equity/revenue)
-//
-// Balances are ALWAYS displayed as positive intuitive numbers.
-// Credit-normal accounts: displayed = -(raw_cents / 100)
-// Debit-normal accounts:  displayed =  (raw_cents / 100)
-// ─────────────────────────────────────────────────────────────────────────────
+// ── config ──
+const SEED_CENTS = 100000; // $1,000.00 into Checking at setup
 
-const SCENARIOS = {
+// ── helpers ──
+const $  = sel => document.querySelector(sel);
+const uid = () => crypto.randomUUID();
+const usd = c => (c < 0 ? '-' : '') + '$' + (Math.abs(c)/100).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+const iso = () => new Date().toISOString();
 
-    // ── RESTAURANT ────────────────────────────────────────────────────────────
-    // The Ledger Kitchen — a busy downtown restaurant.
-    // We show money flowing in from customers and out to suppliers and staff.
-    // All displayed balances are positive and intuitive.
-    restaurant: {
-        name: 'The Ledger Kitchen',
-        description: 'A busy restaurant processing dine-in payments, paying suppliers, and running payroll',
-        accounts: [
-            {
-                key: 'register',
-                name: 'Cash Register',
-                desc: 'Money in the till from customer payments',
-                type: 'asset',
-                creditNormal: false,
-                seed: 500000,   // $5,000 starting float
-            },
-            {
-                key: 'revenue',
-                name: 'Food & Drink Sales',
-                desc: 'Total revenue earned from customers today',
-                type: 'revenue',
-                creditNormal: true,
-                seed: 0,
-            },
-            {
-                key: 'payable',
-                name: 'Supplier Bills Due',
-                desc: 'Invoices received but not yet paid',
-                type: 'liability',
-                creditNormal: true,
-                seed: 0,
-            },
-            {
-                key: 'food_cost',
-                name: 'Food & Drink Cost',
-                desc: 'What the restaurant spends on ingredients',
-                type: 'expense',
-                creditNormal: false,
-                seed: 0,
-            },
-            {
-                key: 'wages',
-                name: 'Staff Wages',
-                desc: 'Labor costs paid to kitchen and floor staff',
-                type: 'expense',
-                creditNormal: false,
-                seed: 0,
-            },
-        ],
-        // Each transaction returns { desc, reason, entries[] }
-        // entries: { account key, direction, cents }
-        // Both sides must balance (total debits = total credits)
-        transactions: (accs) => {
-            const r = Math.random();
+async function api(method, path, body){
+  const res = await fetch(path, {
+    method,
+    headers: body ? {'Content-Type':'application/json'} : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let json = null;
+  try { json = await res.json(); } catch(e) {}
+  return { ok: res.ok, status: res.status, body: json };
+}
 
-            // 55% — customer pays for a meal
-            // Money arrives in Cash Register, Revenue is recorded
-            if (r < 0.55) {
-                const cents = pick([1800,2200,2800,3400,4200,5500,6800,8500,9200,11000]);
-                return {
-                    desc: `Table payment — ${pick(['Lunch','Dinner','Brunch','Bar tab'])}`,
-                    entries: [
-                        { account: 'register', dir: 'debit',  cents },   // till goes up
-                        { account: 'revenue',  dir: 'credit', cents },   // revenue recorded
-                    ]
-                };
-            }
+const acc = {}; // checking, vendor, equity -> id
+let pointInTimeMark = null;
 
-            // 20% — supplier delivers ingredients, sends invoice (no cash moves yet)
-            // Cost is recorded, liability (bill owed) is recorded
-            if (r < 0.75) {
-                const cents = pick([8000,12000,15000,20000,25000,35000]);
-                const supplier = pick(['Fresh Produce Co.','Premium Meats','Wine & Spirits Ltd','Dairy Direct']);
-                return {
-                    desc: `Invoice received — ${supplier}`,
-                    entries: [
-                        { account: 'food_cost', dir: 'debit',  cents },  // cost recorded
-                        { account: 'payable',   dir: 'credit', cents },  // bill owed
-                    ]
-                };
-            }
+async function createAccount(name, type){
+  const r = await api('POST', '/accounts', { name, type, currency: 'USD' });
+  if (!r.ok) throw new Error('setup failed creating ' + name);
+  return r.body.id;
+}
 
-            // 15% — restaurant pays an outstanding supplier invoice
-            // Cash leaves the till, the bill is cleared
-            if (r < 0.90) {
-                const cents = pick([8000,12000,15000,20000]);
-                return {
-                    desc: `Supplier payment — invoice settled`,
-                    entries: [
-                        { account: 'payable',  dir: 'debit',  cents },  // bill cleared
-                        { account: 'register', dir: 'credit', cents },  // cash leaves
-                    ]
-                };
-            }
+async function balanceOf(id){
+  const r = await api('GET', `/accounts/${id}/balance`);
+  return r.body.balance_cents;
+}
 
-            // 10% — staff wages paid
-            // Cash leaves the till, labor cost recorded
-            const cents = pick([18000,24000,32000,40000]);
-            return {
-                desc: `Payroll — ${pick(['Kitchen staff','Floor staff','Management','Bar staff'])}`,
-                entries: [
-                    { account: 'wages',    dir: 'debit',  cents },  // labor cost
-                    { account: 'register', dir: 'credit', cents },  // cash out
-                ]
-            };
-        }
-    },
+function txn(entries, idempotencyKey, description){
+  return {
+    description,
+    idempotency_key: idempotencyKey || uid(),
+    occurred_at: iso(),
+    entries,
+  };
+}
 
-    // ── PAYMENT PROCESSOR ─────────────────────────────────────────────────────
-    // FastPay — a payment processor like Stripe.
-    // Merchants receive money from customers. The processor takes a fee.
-    // All accounts are assets so all balances are always positive.
-    payments: {
-        name: 'FastPay Processor',
-        description: 'A payment processor routing customer payments to merchants and collecting fees',
-        accounts: [
-            {
-                key: 'incoming',
-                name: 'Incoming Funds',
-                desc: 'Customer payments arriving from card networks',
-                type: 'asset',
-                creditNormal: false,
-                seed: 1000000,  // $10,000 float
-            },
-            {
-                key: 'merchant_a',
-                name: 'Merchant A — Balance',
-                desc: 'Shopify store — earned revenue awaiting payout',
-                type: 'asset',
-                creditNormal: false,
-                seed: 50000,
-            },
-            {
-                key: 'merchant_b',
-                name: 'Merchant B — Balance',
-                desc: 'SaaS company — subscription revenue',
-                type: 'asset',
-                creditNormal: false,
-                seed: 50000,
-            },
-            {
-                key: 'merchant_c',
-                name: 'Merchant C — Balance',
-                desc: 'Restaurant chain — in-person payments',
-                type: 'asset',
-                creditNormal: false,
-                seed: 50000,
-            },
-            {
-                key: 'fees',
-                name: 'Fee Revenue',
-                desc: 'Processing fees earned (2.9% + $0.30 per transaction)',
-                type: 'asset',
-                creditNormal: false,
-                seed: 0,
-            },
-        ],
-        transactions: (accs) => {
-            const merchants = ['merchant_a','merchant_b','merchant_c'];
-            const merchantNames = {
-                merchant_a: 'Merchant A',
-                merchant_b: 'Merchant B',
-                merchant_c: 'Merchant C',
-            };
-            const r = Math.random();
+// ── setup: two asset accounts + one equity account to seed them ──
+async function setup(){
+  acc.checking = await createAccount('Checking', 'asset');
+  acc.vendor   = await createAccount('Vendor Payments', 'asset');
+  acc.equity   = await createAccount('Owner Equity', 'equity');
 
-            // 70% — customer payment arrives, merchant gets credited minus fee
-            if (r < 0.70) {
-                const gross = pick([999,1499,1999,2499,4999,7999,9999,19999,49999]);
-                const fee   = Math.round(gross * 0.029) + 30;
-                const net   = gross - fee;
-                const m     = pick(merchants);
-                return {
-                    desc: `Customer → ${merchantNames[m]}`,
-                    entries: [
-                        { account: 'incoming',  dir: 'debit',  cents: gross }, // money arrives
-                        { account: m,           dir: 'debit',  cents: net   }, // merchant gets net
-                        { account: 'fees',      dir: 'debit',  cents: fee   }, // fee earned
-                        { account: 'incoming',  dir: 'credit', cents: gross }, // funds routed out
-                    ]
-                };
-            }
+  const seed = txn(
+    [
+      { account_id: acc.checking, amount_cents: SEED_CENTS, direction: 'debit',  currency: 'USD' },
+      { account_id: acc.equity,   amount_cents: SEED_CENTS, direction: 'credit', currency: 'USD' },
+    ],
+    uid(),
+    'Owner investment — initial deposit'
+  );
+  const r = await api('POST', '/transactions', seed);
+  if (!r.ok) throw new Error('setup failed seeding checking account');
 
-            // 20% — merchant requests payout to bank account
-            // Their processor balance decreases
-            if (r < 0.90) {
-                const m      = pick(merchants);
-                const amount = pick([25000,50000,75000,100000,200000]);
-                return {
-                    desc: `${merchantNames[m]} — bank payout`,
-                    entries: [
-                        { account: m,        dir: 'credit', cents: amount }, // balance decreases
-                        { account: 'incoming',dir: 'debit', cents: amount }, // funds moved
-                    ]
-                };
-            }
+  pointInTimeMark = iso();
+}
 
-            // 10% — refund issued to customer
-            // Merchant balance decreases, incoming funds go back
-            const m      = pick(merchants);
-            const amount = pick([999,1499,2499,4999]);
-            return {
-                desc: `Refund issued — ${merchantNames[m]}`,
-                entries: [
-                    { account: m,         dir: 'credit', cents: amount }, // deducted from merchant
-                    { account: 'incoming', dir: 'debit',  cents: amount }, // returned to customer pool
-                ]
-            };
-        }
-    },
-
-    // ── EXCHANGE ──────────────────────────────────────────────────────────────
-    // ClearTrade Exchange — traders buy and sell assets.
-    // Every trade moves money from buyer to seller instantly.
-    // The exchange earns a fee on every trade.
-    // All accounts are assets so all balances intuitive.
-    exchange: {
-        name: 'ClearTrade Exchange',
-        description: 'An exchange where traders buy and sell assets — every trade is an atomic ledger entry',
-        accounts: [
-            {
-                key: 'clearing',
-                name: 'Clearing House',
-                desc: 'Central pool that settles all trades between parties',
-                type: 'asset',
-                creditNormal: false,
-                seed: 2000000,
-            },
-            {
-                key: 'trader_alpha',
-                name: 'Trader Alpha',
-                desc: 'Institutional buyer — large position trades',
-                type: 'asset',
-                creditNormal: false,
-                seed: 500000,
-            },
-            {
-                key: 'trader_beta',
-                name: 'Trader Beta',
-                desc: 'Market maker — provides liquidity both sides',
-                type: 'asset',
-                creditNormal: false,
-                seed: 500000,
-            },
-            {
-                key: 'trader_gamma',
-                name: 'Trader Gamma',
-                desc: 'Retail trader — frequent smaller trades',
-                type: 'asset',
-                creditNormal: false,
-                seed: 200000,
-            },
-            {
-                key: 'exchange_fees',
-                name: 'Exchange Revenue',
-                desc: 'Fees collected on every executed trade (0.1%)',
-                type: 'asset',
-                creditNormal: false,
-                seed: 0,
-            },
-        ],
-        transactions: (accs) => {
-            const traders   = ['trader_alpha','trader_beta','trader_gamma'];
-            const traderNames = {
-                trader_alpha: 'Alpha',
-                trader_beta:  'Beta',
-                trader_gamma: 'Gamma',
-            };
-            const assets = ['AAPL','TSLA','BTC','ETH','SPY','NVDA','MSFT'];
-
-            const buyer  = pick(traders);
-            const seller = pick(traders.filter(t => t !== buyer));
-            const gross  = pick([10000,25000,50000,100000,250000,500000]);
-            const fee    = Math.round(gross * 0.001);
-            const net    = gross - fee;
-            const asset  = pick(assets);
-            const qty    = pick([1,2,5,10,25,100]);
-
-            return {
-                desc: `${traderNames[buyer]} buys ${qty}× ${asset} from ${traderNames[seller]}`,
-                entries: [
-                    { account: buyer,          dir: 'credit', cents: gross }, // buyer pays
-                    { account: seller,         dir: 'debit',  cents: net   }, // seller receives net
-                    { account: 'exchange_fees',dir: 'debit',  cents: fee   }, // fee collected
-                    { account: 'clearing',     dir: 'debit',  cents: gross }, // clearing settles
-                    { account: 'clearing',     dir: 'credit', cents: gross }, // clearing balances
-                ]
-            };
-        }
+// ── the six tests ──
+const TESTS = [
+  {
+    id: 'balance',
+    title: 'Every transaction must balance',
+    tag: 'double-entry invariant',
+    desc: 'Money can\u2019t appear or disappear. If a transaction\u2019s debits don\u2019t equal its credits, the ledger refuses to write it, before it ever touches the database.',
+    run: async () => {
+      const req = txn([
+        { account_id: acc.checking, amount_cents: 5000, direction: 'debit',  currency: 'USD' },
+        { account_id: acc.vendor,   amount_cents: 4000, direction: 'credit', currency: 'USD' },
+      ], null, 'Unbalanced transfer attempt');
+      const res = await api('POST', '/transactions', req);
+      const pass = !res.ok && res.status === 400;
+      return {
+        pass,
+        summary: pass
+          ? 'Rejected. $50.00 in debits vs $40.00 in credits — the ledger caught the mismatch and wrote nothing.'
+          : 'Unexpected: the ledger accepted an unbalanced transaction.',
+        req, res,
+      };
     }
-};
+  },
+  {
+    id: 'funds',
+    title: 'You can\u2019t withdraw money that isn\u2019t there',
+    tag: 'sufficient funds',
+    desc: 'An asset account can\u2019t be overdrawn. A transaction that would push a balance below zero is rejected before any write occurs.',
+    run: async () => {
+      const bal = await balanceOf(acc.checking);
+      const amount = bal + 100000;
+      const req = txn([
+        { account_id: acc.checking, amount_cents: amount, direction: 'credit', currency: 'USD' },
+        { account_id: acc.vendor,   amount_cents: amount, direction: 'debit',  currency: 'USD' },
+      ], null, 'Attempted overdraft');
+      const res = await api('POST', '/transactions', req);
+      const pass = !res.ok && res.status === 422;
+      return {
+        pass,
+        summary: pass
+          ? `Rejected. Checking holds ${usd(bal)}; a ${usd(amount)} withdrawal was correctly refused.`
+          : 'Unexpected: the ledger allowed an account to go negative.',
+        req, res,
+      };
+    }
+  },
+  {
+    id: 'idempotency',
+    title: 'Submitting a payment twice charges it once',
+    tag: 'idempotency',
+    desc: 'The same request, sent twice with the same idempotency key, produces one transaction. This is what makes it safe for a client to retry after a timeout.',
+    run: async () => {
+      const key = uid();
+      const before = await balanceOf(acc.checking);
+      const req = txn([
+        { account_id: acc.checking, amount_cents: 2500, direction: 'credit', currency: 'USD' },
+        { account_id: acc.vendor,   amount_cents: 2500, direction: 'debit',  currency: 'USD' },
+      ], key, 'Vendor payment — rent');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// STATE
-// ─────────────────────────────────────────────────────────────────────────────
+      const first  = await api('POST', '/transactions', req);
+      const second = await api('POST', '/transactions', req);
+      const after  = await balanceOf(acc.checking);
 
-let state = {
-    scenario:    'restaurant',
-    mode:        null,
-    running:     false,
-    accounts:    {},      // key → { id, rawBalance, displayBalance, type, creditNormal, name }
-    committed:   0,
-    rejected:    0,
-    tpsWindow:   0,
-    tpsHistory:  new Array(40).fill(0),
-    intervalIds: [],
-    chaosTimer:  null,
-    crashed:     false,
-    setupDone:   false,
-};
+      const sameId = first.ok && second.ok && first.body.id === second.body.id;
+      const chargedOnce = (before - after) === 2500;
+      const pass = sameId && chargedOnce;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
+      return {
+        pass,
+        summary: pass
+          ? `Both requests returned the same transaction id. Checking dropped by ${usd(before-after)} — exactly once, not twice.`
+          : 'Unexpected: the two identical requests did not resolve to a single charge.',
+        reqLabel: 'sent — twice, byte-for-byte identical, same idempotency_key',
+        resLabel: 'received — from each of the two calls',
+        req: { request_1: req, request_2: req },
+        res: {
+          response_1: first,
+          response_2: second,
+          balance_before: before,
+          balance_after: after,
+        },
+      };
+    }
+  },
+  {
+    id: 'concurrency',
+    title: 'Ten simultaneous withdrawals still add up correctly',
+    tag: 'concurrent correctness',
+    desc: 'Ten requests hit the same account at the same instant. Serializable isolation in PostgreSQL detects the conflicts and retries automatically, so the final balance is exact.',
+    run: async () => {
+      const N = 10, amount = 1000; // $10 each
+      const before = await balanceOf(acc.checking);
+      const reqs = Array.from({length: N}, () => txn([
+        { account_id: acc.checking, amount_cents: amount, direction: 'credit', currency: 'USD' },
+        { account_id: acc.vendor,   amount_cents: amount, direction: 'debit',  currency: 'USD' },
+      ], null, 'Concurrent withdrawal'));
 
-const pick   = arr => arr[Math.floor(Math.random() * arr.length)];
-const sleep  = ms  => new Promise(r => setTimeout(r, ms));
+      const results = await Promise.all(reqs.map(r => api('POST', '/transactions', r)));
+      const succeeded = results.filter(r => r.ok).length;
+      const after = await balanceOf(acc.checking);
+      const expected = before - succeeded * amount;
+      const pass = after === expected;
 
-// Convert raw database cents to display value
-// Credit-normal accounts: negative raw = positive display (credits increase them)
-// Debit-normal accounts:  positive raw = positive display
-function toDisplay(creditNormal, rawCents) {
-    return creditNormal ? -(rawCents / 100) : (rawCents / 100);
-}
+      return {
+        pass,
+        summary: pass
+          ? `${succeeded}/${N} concurrent withdrawals committed. Balance moved by exactly ${usd(before-after)} — not one cent off.`
+          : `Balance mismatch: expected ${usd(expected)}, got ${usd(after)}.`,
+        reqLabel: `sent — all ${N} fired at once via Promise.all, each with its own idempotency_key`,
+        resLabel: `received — one response per request, plus the balance before and after`,
+        req: reqs,
+        res: {
+          responses: results,
+          balance_before: before,
+          balance_after: after,
+        },
+      };
+    }
+  },
+  {
+    id: 'atomicity',
+    title: 'One bad entry rolls back the whole transaction',
+    tag: 'atomic writes',
+    desc: 'A transaction is all-or-nothing. If any entry in it references an account that doesn\u2019t exist, nothing in the transaction is written.',
+    run: async () => {
+      const fakeId = uid();
+      const beforeC = await balanceOf(acc.checking);
+      const beforeV = await balanceOf(acc.vendor);
 
-function fmtDollars(val) {
-    const abs = Math.abs(val);
-    return (val < 0 ? '-' : '') + '$' + abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+      const req = txn([
+        { account_id: acc.checking, amount_cents: 3000, direction: 'credit', currency: 'USD' },
+        { account_id: fakeId,       amount_cents: 3000, direction: 'debit',  currency: 'USD' },
+      ], null, 'Transfer to a non-existent account');
+      const res = await api('POST', '/transactions', req);
 
-function now() {
-    return new Date().toLocaleTimeString('en-US', { hour12: false });
-}
+      const afterC = await balanceOf(acc.checking);
+      const afterV = await balanceOf(acc.vendor);
+      const pass = !res.ok && afterC === beforeC && afterV === beforeV;
 
-function logStatus(msg, type = 'dim') {
-    const log  = document.getElementById('statusLog');
-    const line = document.createElement('div');
-    line.className = 'log-line';
-    line.innerHTML = `<span class="log-time">${now()}</span><span class="log-msg ${type}">${msg}</span>`;
-    log.appendChild(line);
-    log.scrollTop = log.scrollHeight;
-}
+      return {
+        pass,
+        summary: pass
+          ? 'Rejected. The valid half of the transaction was never written — both balances are untouched.'
+          : 'Unexpected: part of the transaction was written despite the bad entry.',
+        req, res,
+      };
+    }
+  },
+  {
+    id: 'pointintime',
+    title: 'Look up a balance from the past',
+    tag: 'point-in-time reconstruction',
+    desc: 'Balance is never stored, it\u2019s derived by summing entries on demand. That means the balance at any past moment can be reconstructed exactly, just by summing entries up to that timestamp.',
+    run: async () => {
+      const hist = await api('GET', `/accounts/${acc.checking}/history`);
+      const entries = hist.body || [];
+      const asOf = new Date(pointInTimeMark);
+      const entriesUpToMark = entries.filter(e => new Date(e.created_at) <= asOf);
+      const historical = entriesUpToMark
+        .reduce((sum, e) => sum + (e.direction === 'debit' ? e.amount_cents : -e.amount_cents), 0);
+      const currentRes = await api('GET', `/accounts/${acc.checking}/balance`);
+      const current = currentRes.body.balance_cents;
+      const pass = historical === SEED_CENTS;
 
-function addFeedRow(desc, amount, status, reason) {
-    const body  = document.getElementById('feedBody');
-    const empty = document.getElementById('feedEmpty');
-    if (empty) empty.style.display = 'none';
+      return {
+        pass,
+        summary: pass
+          ? `Balance right after setup: ${usd(historical)}. Balance right now: ${usd(current)}. Same account, two points in time, both computed from the same entry history.`
+          : 'Unexpected: the reconstructed historical balance didn\u2019t match the known seed amount.',
+        reqLabel: 'sent — GET the full entry history for Checking (no filtering on the server)',
+        resLabel: 'received — raw entries, then summed client-side up to the "as of" timestamp',
+        req: { request: `GET /accounts/${acc.checking}/history`, as_of_used_for_reconstruction: pointInTimeMark },
+        res: {
+          full_history_response: hist,
+          entries_at_or_before_mark: entriesUpToMark,
+          reconstructed_balance_cents: historical,
+          current_balance_response: currentRes,
+        },
+      };
+    }
+  },
+];
 
-    const icons = { success: '●', rejected: '✕', system: '◆' };
-    const row   = document.createElement('div');
-    row.className = `tx-row ${status}`;
-
-    let html = `
-        <span class="tx-icon">${icons[status] || '●'}</span>
-        <span class="tx-desc">${desc}</span>
-        <span class="tx-amount">${amount}</span>
-        <span class="tx-time">${now()}</span>
+// ── render ──
+function renderTests(){
+  const container = $('#tests');
+  TESTS.forEach((t, i) => {
+    const el = document.createElement('div');
+    el.className = 'test';
+    el.innerHTML = `
+      <div class="test-head">
+        <span class="test-num">${String(i+1).padStart(2,'0')}</span>
+        <div>
+          <p class="test-title">${t.title}</p>
+          <p class="test-sub">${t.tag}</p>
+        </div>
+      </div>
+      <div class="test-body">
+        <p class="test-desc">${t.desc}</p>
+        <div class="test-controls">
+          <button data-run="${t.id}" disabled>Run this test</button>
+        </div>
+        <div class="verdict" id="verdict-${t.id}">
+          <div class="v-title"></div>
+          <div class="v-body"></div>
+          <details>
+            <summary>full request / response — nothing hidden</summary>
+            <div class="req-label req-label-text"></div>
+            <pre class="req"></pre>
+            <div class="req-label res-label-text"></div>
+            <pre class="res"></pre>
+          </details>
+        </div>
+      </div>
     `;
+    container.appendChild(el);
+  });
 
-    // show rejection reason inline so viewers understand WHY it was rejected
-    if (status === 'rejected' && reason) {
-        html += `<span class="tx-reason">↳ ${reason}</span>`;
-    }
-
-    row.innerHTML = html;
-    body.insertBefore(row, body.firstChild);
-
-    while (body.children.length > 100) body.removeChild(body.lastChild);
+  container.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-run]');
+    if (!btn) return;
+    await runTest(btn.dataset.run, btn);
+  });
 }
 
-function updateStats() {
-    document.getElementById('statTps').textContent       = state.tpsWindow;
-    document.getElementById('statCommitted').textContent = state.committed.toLocaleString();
-    document.getElementById('statRejected').textContent  = state.rejected;
-    document.getElementById('metricTps').textContent     = state.tpsWindow;
-    document.getElementById('metricCommitted').textContent = state.committed.toLocaleString();
-
-    const rejEl  = document.getElementById('metricRejected');
-    const rejSub = document.getElementById('metricRejectedSub');
-    rejEl.textContent = state.rejected;
-    rejEl.className   = `metric-value ${state.rejected === 0 ? '' : 'red'}`;
-    rejSub.textContent = state.rejected === 0
-        ? 'business rules enforced'
-        : `${state.rejected} transaction${state.rejected === 1 ? '' : 's'} correctly rejected`;
+async function runTest(id, btn){
+  const t = TESTS.find(t => t.id === id);
+  btn.disabled = true;
+  btn.textContent = 'running…';
+  try {
+    const result = await t.run();
+    showVerdict(id, result);
+  } catch (err) {
+    showVerdict(id, { pass: false, summary: 'Test errored: ' + err.message, req: {}, res: {} });
+  }
+  btn.disabled = false;
+  btn.textContent = 'Run again';
 }
 
-function renderAccountCard(key) {
-    const acc  = state.accounts[key];
-    const card = document.getElementById(`acc-${key}`);
-    if (!card || !acc) return;
-
-    const display = toDisplay(acc.creditNormal, acc.rawBalance);
-    const balEl   = card.querySelector('.account-balance');
-
-    balEl.textContent = fmtDollars(display);
-    balEl.className   = 'account-balance' +
-        (display < 0    ? ' danger' :
-         display < 1000 ? ' warn'   : '');
+function showVerdict(id, { pass, summary, req, res, reqLabel, resLabel }){
+  const box = $(`#verdict-${id}`);
+  box.classList.remove('pass','fail');
+  box.classList.add('show', pass ? 'pass' : 'fail');
+  box.querySelector('.v-title').textContent = pass ? '\u2713 Correct' : '\u2717 Unexpected';
+  box.querySelector('.v-body').textContent = summary;
+  box.querySelector('.req-label-text').textContent = reqLabel || 'sent';
+  box.querySelector('.res-label-text').textContent = resLabel || 'received';
+  box.querySelector('.req').textContent = JSON.stringify(req ?? {}, null, 2);
+  box.querySelector('.res').textContent = JSON.stringify(res ?? {}, null, 2);
 }
 
-function flashCard(key, delta) {
-    const card    = document.getElementById(`acc-${key}`);
-    const deltaEl = card?.querySelector('.account-delta');
-    if (!card || !deltaEl) return;
-
-    card.classList.add('flash');
-    const display = toDisplay(state.accounts[key].creditNormal, delta);
-    deltaEl.textContent = (display >= 0 ? '+' : '') + fmtDollars(display);
-    deltaEl.className   = `account-delta ${display >= 0 ? 'up' : 'down'}`;
-
-    setTimeout(() => {
-        card.classList.remove('flash');
-        deltaEl.textContent = '';
-        deltaEl.className   = 'account-delta';
-    }, 1400);
+async function runAll(){
+  const allBtn = $('#runAllBtn');
+  allBtn.disabled = true;
+  for (const t of TESTS){
+    const btn = document.querySelector(`button[data-run="${t.id}"]`);
+    await runTest(t.id, btn);
+  }
+  allBtn.disabled = false;
 }
 
-function drawSparkline() {
-    const canvas = document.getElementById('sparkline');
-    const ctx    = canvas.getContext('2d');
-    const w = canvas.offsetWidth;
-    const h = canvas.offsetHeight;
-    canvas.width  = w;
-    canvas.height = h;
-
-    const data = state.tpsHistory;
-    const max  = Math.max(...data, 1);
-
-    ctx.clearRect(0, 0, w, h);
-    ctx.strokeStyle = '#00e676';
-    ctx.lineWidth   = 1.5;
-    ctx.beginPath();
-    data.forEach((v, i) => {
-        const x = (i / (data.length - 1)) * w;
-        const y = h - (v / max) * h * 0.85 - h * 0.05;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
-    ctx.fillStyle = '#00e67612';
-    ctx.fill();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// API
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function apiPost(path, body) {
-    const res  = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const json = await res.json();
-    if (!res.ok) throw json;
-    return json;
-}
-
-async function apiGet(path) {
-    const res  = await fetch(path);
-    const json = await res.json();
-    if (!res.ok) throw json;
-    return json;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SETUP
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function setupScenario(scenarioKey) {
-    const scenario = SCENARIOS[scenarioKey];
-    document.getElementById('scenarioName').textContent = scenario.name;
-
-    const list = document.getElementById('accountsList');
-    list.innerHTML = `<div style="color:var(--dim);font-size:11px;padding:16px;text-align:center;">Creating accounts for ${scenario.name}...</div>`;
-    logStatus(`Setting up ${scenario.name}...`);
-
-    state.accounts = {};
-
-    for (const acc of scenario.accounts) {
-        try {
-            const res = await apiPost('/accounts', { name: acc.name, type: acc.type, currency: 'USD' });
-            state.accounts[acc.key] = {
-                id:           res.id,
-                rawBalance:   0,
-                creditNormal: acc.creditNormal,
-                name:         acc.name,
-                type:         acc.type,
-            };
-            logStatus(`Created: ${acc.name}`, 'green');
-        } catch (e) {
-            logStatus(`Failed: ${acc.name} — ${e?.error || 'unknown'}`, 'red');
-        }
-    }
-
-    // seed accounts that start with a balance
-    for (const acc of scenario.accounts) {
-        if (!acc.seed || acc.seed === 0) continue;
-        const seedAcc = state.accounts[acc.key];
-        if (!seedAcc) continue;
-
-        // find a liability/equity account to be the other side of the seed
-        // if none, use the first account with a different key
-        const otherKey = scenario.accounts.find(a => a.key !== acc.key && state.accounts[a.key])?.key;
-        if (!otherKey) continue;
-        const otherAcc = state.accounts[otherKey];
-
-        try {
-            await apiPost('/transactions', {
-                description:     `Opening balance — ${acc.name}`,
-                idempotency_key: `seed-${seedAcc.id}`,
-                occurred_at:     new Date().toISOString(),
-                entries: [
-                    { account_id: seedAcc.id,  amount_cents: acc.seed, direction: 'debit',  currency: 'USD' },
-                    { account_id: otherAcc.id, amount_cents: acc.seed, direction: 'credit', currency: 'USD' },
-                ],
-            });
-            logStatus(`Seeded ${acc.name} with ${fmtDollars(acc.seed / 100)}`, 'green');
-        } catch (e) {
-            logStatus(`Seed failed for ${acc.name}`, 'yellow');
-        }
-    }
-
-    // render account cards
-    list.innerHTML = '';
-    for (const acc of scenario.accounts) {
-        const accState = state.accounts[acc.key];
-        if (!accState) continue;
-        const div = document.createElement('div');
-        div.className = 'account-card';
-        div.id = `acc-${acc.key}`;
-        div.innerHTML = `
-            <div class="account-name">${acc.name}</div>
-            <div class="account-desc">${acc.desc}</div>
-            <div class="account-balance">$0.00</div>
-            <div class="account-delta"></div>
-        `;
-        list.appendChild(div);
-    }
-
-    state.setupDone = true;
-    logStatus(`${scenario.name} ready — choose a mode to begin`, 'green');
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// REAL-TIME BALANCE POLLING
-// Polls actual database balances every second.
-// This ensures what you see on screen matches exactly what is in PostgreSQL.
-// No local tracking approximations.
-// ─────────────────────────────────────────────────────────────────────────────
-
-setInterval(async () => {
-    if (!state.setupDone || Object.keys(state.accounts).length === 0) return;
-
-    for (const [key, acc] of Object.entries(state.accounts)) {
-        try {
-            const res    = await apiGet(`/accounts/${acc.id}/balance`);
-            const prev   = acc.rawBalance;
-            const curr   = res.balance_cents;
-            const delta  = curr - prev;
-            acc.rawBalance = curr;
-            renderAccountCard(key);
-            if (delta !== 0) flashCard(key, delta);
-        } catch (e) {
-            // server may be down in chaos mode — silently wait for recovery
-        }
-    }
-}, 1000);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUBMIT TRANSACTION
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function submitTransaction() {
-    if (state.crashed) return;
-
-    const scenario = SCENARIOS[state.scenario];
-    const template = scenario.transactions(state.accounts);
-    if (!template) return;
-
-    // resolve entries — map account keys to real IDs
-    const entries = template.entries.map(e => {
-        const acc = state.accounts[e.account];
-        if (!acc) return null;
-        return { account_id: acc.id, amount_cents: e.cents, direction: e.dir, currency: 'USD' };
-    }).filter(Boolean);
-
-    if (entries.length < 2) return;
-
-    // verify balance before sending
-    const debits  = entries.filter(e => e.direction === 'debit').reduce((s,e) => s + e.amount_cents, 0);
-    const credits = entries.filter(e => e.direction === 'credit').reduce((s,e) => s + e.amount_cents, 0);
-    if (debits !== credits) return;
-
-    const amount = fmtDollars(debits / 100);
-
-    try {
-        await apiPost('/transactions', {
-            description:     template.desc,
-            idempotency_key: crypto.randomUUID(),
-            occurred_at:     new Date().toISOString(),
-            entries,
-        });
-
-        state.committed++;
-        state.tpsWindow++;
-        addFeedRow(template.desc, amount, 'success');
-
-    } catch (err) {
-        const msg = err?.error || 'transaction failed';
-
-        // determine a clear human-readable reason for rejection
-        let reason = msg;
-        if (msg.includes('insufficient'))    reason = 'Insufficient funds — account balance too low';
-        else if (msg.includes('not found'))  reason = 'Account not found';
-        else if (msg.includes('balance'))    reason = 'Entries do not balance';
-        else if (msg.includes('retry') || msg.includes('serializ')) {
-            // serialization conflicts are retried automatically — not shown as rejections
-            state.tpsWindow++;
-            addFeedRow(template.desc, amount, 'success');
-            state.committed++;
-            return;
-        }
-
-        state.rejected++;
-        addFeedRow(template.desc, amount, 'rejected', reason);
-    }
-
-    updateStats();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MODES
-// ─────────────────────────────────────────────────────────────────────────────
-
-function clearIntervals() {
-    state.intervalIds.forEach(clearInterval);
-    state.intervalIds = [];
-    if (state.chaosTimer) { clearTimeout(state.chaosTimer); state.chaosTimer = null; }
-}
-
-function setModeUI(mode, label, sub) {
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector(`.mode-btn.${mode}`)?.classList.add('active');
-    const el  = document.getElementById('metricMode');
-    el.textContent = label;
-    el.className   = `metric-value ${mode === 'normal' ? 'green' : mode === 'rush' ? 'yellow' : 'red'}`;
-    el.style.fontSize = '15px';
-    document.getElementById('metricModeSub').textContent = sub;
-}
-
-function startNormal() {
-    setModeUI('normal', 'Normal', 'steady transaction flow');
-    logStatus('Normal mode — one transaction every ~800ms', 'green');
-    const id = setInterval(submitTransaction, 800);
-    state.intervalIds.push(id);
-}
-
-function startRush() {
-    setModeUI('rush', 'Rush Hour 🔥', '20 concurrent transactions / 100ms');
-    logStatus('Rush hour — firing 20 concurrent transactions every 100ms', 'yellow');
-    const id = setInterval(() => {
-        for (let i = 0; i < 20; i++) submitTransaction();
-    }, 100);
-    state.intervalIds.push(id);
-}
-
-function startChaos() {
-    setModeUI('chaos', 'Chaos ⚡', 'random crashes injected');
-    logStatus('Chaos mode — server will crash randomly. Watch recovery.', 'red');
-    document.getElementById('chaosOverlay').classList.add('active');
-
-    const id = setInterval(() => {
-        for (let i = 0; i < 8; i++) submitTransaction();
-    }, 200);
-    state.intervalIds.push(id);
-
-    scheduleCrash();
-}
-
-function scheduleCrash() {
-    const delay = 5000 + Math.random() * 5000;
-    state.chaosTimer = setTimeout(async () => {
-        if (!state.running) return;
-        await crashAndRecover();
-        if (state.running && state.mode === 'chaos') scheduleCrash();
-    }, delay);
-}
-
-async function crashAndRecover() {
-    logStatus('⚡ SERVER CRASH — all transactions failing', 'red');
-    state.crashed = true;
-    document.getElementById('crashBanner').classList.add('visible');
-    addFeedRow('— SERVER DOWN —', '', 'system');
-
-    await sleep(2500 + Math.random() * 2000);
-
-    logStatus('Restarting server...', 'yellow');
-    document.getElementById('crashBanner').classList.remove('visible');
-    state.crashed = false;
-
-    await sleep(600);
-    logStatus('Server recovered ✓', 'green');
-    addFeedRow('— SERVER RECOVERED —', '', 'system');
-
-    // run reconciliation to prove zero data loss
-    await reconcile();
-}
-
-async function reconcile() {
-    logStatus('Running reconciliation — verifying all balances...', 'dim');
-
-    const scenario = SCENARIOS[state.scenario];
-    const block    = document.getElementById('reconcileBlock');
-    const rows     = document.getElementById('reconcileRows');
-    rows.innerHTML = '';
-
-    let allOk = true;
-
-    for (const acc of scenario.accounts) {
-        const local = state.accounts[acc.key];
-        if (!local) continue;
-
-        try {
-            const res      = await apiGet(`/accounts/${local.id}/balance`);
-            const dbRaw    = res.balance_cents;
-            const display  = toDisplay(acc.creditNormal, dbRaw);
-            const match    = dbRaw === local.rawBalance;
-            if (!match) allOk = false;
-
-            const row = document.createElement('div');
-            row.className = 'reconcile-row';
-            row.innerHTML = `
-                <span>${acc.name}</span>
-                <span class="${match ? 'ok-val' : 'fail-val'}">
-                    ${match ? '✓ ' + fmtDollars(display) : '✕ mismatch'}
-                </span>
-            `;
-            rows.appendChild(row);
-        } catch (e) {
-            allOk = false;
-            const row = document.createElement('div');
-            row.className = 'reconcile-row';
-            row.innerHTML = `<span>${acc.name}</span><span class="fail-val">✕ fetch failed</span>`;
-            rows.appendChild(row);
-        }
-    }
-
-    block.className = `reconcile-block visible ${allOk ? 'ok' : 'fail'}`;
-    document.getElementById('reconcileTitle').textContent = allOk
-        ? '✓ All balances verified — zero data loss'
-        : '✕ Balance mismatch detected';
-
-    logStatus(allOk
-        ? 'Reconciliation PASSED — every transaction survived the crash'
-        : 'Reconciliation FAILED — investigate immediately',
-        allOk ? 'green' : 'red');
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TPS TICKER
-// ─────────────────────────────────────────────────────────────────────────────
-
-setInterval(() => {
-    state.tpsHistory.push(state.tpsWindow);
-    state.tpsHistory.shift();
-    updateStats();
-    drawSparkline();
-    state.tpsWindow = 0;
-}, 1000);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EVENT LISTENERS
-// ─────────────────────────────────────────────────────────────────────────────
-
-document.querySelectorAll('.scenario-tab').forEach(tab => {
-    tab.addEventListener('click', async () => {
-        if (state.running) stopSimulation();
-        await sleep(200);
-
-        document.querySelectorAll('.scenario-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        state.scenario  = tab.dataset.scenario;
-        state.setupDone = false;
-        state.accounts  = {};
-
-        document.getElementById('feedBody').innerHTML =
-            '<div class="feed-empty" id="feedEmpty"><div class="feed-empty-icon">⬡</div><div>Waiting for transactions...</div></div>';
-        document.getElementById('reconcileBlock').className = 'reconcile-block';
-
-        await setupScenario(state.scenario);
-    });
-});
-
-document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-        const mode = btn.dataset.mode;
-        if (state.running) stopSimulation();
-        await sleep(150);
-
-        if (!state.setupDone) {
-            await setupScenario(state.scenario);
-        }
-
-        state.running   = true;
-        state.mode      = mode;
-        state.committed = 0;
-        state.rejected  = 0;
-        state.tpsWindow = 0;
-        state.tpsHistory = new Array(40).fill(0);
-        state.crashed   = false;
-
-        document.getElementById('stopBtn').classList.add('visible');
-        document.getElementById('chaosOverlay').classList.remove('active');
-        document.getElementById('crashBanner').classList.remove('visible');
-        document.getElementById('reconcileBlock').className = 'reconcile-block';
-        document.getElementById('feedBody').innerHTML =
-            '<div class="feed-empty" id="feedEmpty"><div class="feed-empty-icon">⬡</div><div>Starting...</div></div>';
-
-        if      (mode === 'normal') startNormal();
-        else if (mode === 'rush')   startRush();
-        else if (mode === 'chaos')  startChaos();
-    });
-});
-
-document.getElementById('stopBtn').addEventListener('click', stopSimulation);
-
-function stopSimulation() {
-    clearIntervals();
-    state.running = false;
-    state.crashed = false;
-    state.mode    = null;
-
-    document.getElementById('stopBtn').classList.remove('visible');
-    document.getElementById('chaosOverlay').classList.remove('active');
-    document.getElementById('crashBanner').classList.remove('visible');
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-
-    const el = document.getElementById('metricMode');
-    el.textContent  = 'Stopped';
-    el.className    = 'metric-value';
-    el.style.fontSize = '15px';
-    document.getElementById('metricModeSub').textContent = 'press a mode to restart';
-    logStatus('Simulation stopped', 'dim');
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// INIT — setup default scenario on page load
-// ─────────────────────────────────────────────────────────────────────────────
-
-setupScenario('restaurant');
+// ── init ──
+(async function init(){
+  renderTests();
+  try {
+    await setup();
+    $('#connDot').classList.add('live');
+    $('#connText').textContent = 'connected — two demo accounts created';
+    $('#setupNote').textContent = 'Checking seeded with $1,000.00. Vendor Payments at $0.00.';
+    document.querySelectorAll('button[data-run]').forEach(b => b.disabled = false);
+    $('#runAllBtn').disabled = false;
+    $('#runAllBtn').addEventListener('click', runAll);
+  } catch (err) {
+    $('#connDot').classList.add('down');
+    $('#connText').textContent = 'could not reach the ledger API';
+    $('#setupNote').textContent = 'Make sure the server is running (make run) and this page is served from it.';
+  }
+})();
 </script>
 </body>
 </html>
